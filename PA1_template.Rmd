@@ -1,25 +1,73 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
+title: "Assignment1.Rmd"
+output:
   html_document:
-    keep_md: true
+    keep_md: yes
 ---
 
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-## Loading and preprocessing the data
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+To answer the questions listed, we first source a couple of libraries and read in the .csv file as below:
+```{r}
+library(ggplot2)
+library(plyr)
+# Read the csv file
+rawdata<-read.csv("activity.csv")
+```
+We then proceed to compute the mean and median steps per day. We remove any unknown (NA) values, however we do so only after splitting the dataset into the total steps taken per day. This analysis reveals a mean of about 10766 steps per day and a median of 10765 steps. The code to compute this is listed below:
+```{r}
+# Calculate the mean and median steps per day
+rawdata$date<-as.factor(rawdata$date)
+stepsPerDay<-tapply(rawdata$steps,rawdata$date,sum)
+meanStepsPerDay<-mean(stepsPerDay,na.rm=TRUE)
+medianStepsPerDay<-median(stepsPerDay,na.rm=TRUE)
+print(paste("Mean steps per day: ", meanStepsPerDay))
+print(paste("Median steps per day: ", medianStepsPerDay))
+hist(stepsPerDay,xlab="steps",main="Steps per Day")
+```
+We next assess the activity pattern during the day. Doing so reveals that the maximum activity (most number of steps) occurs at interval 835:
+```{r}
+# Plot the activity pattern
+rawdata$interval <- as.factor(rawdata$interval)
+stepsPerInterval <- tapply(rawdata$steps,rawdata$interval,mean,na.rm=TRUE)
+plot(names(stepsPerInterval),stepsPerInterval,type="l",
+     xlab="Interval",ylab="steps per interval",main="Steps per Interval")
+print(paste("Max steps occur in interval ", 
+            names(which(stepsPerInterval == max(stepsPerInterval)))))
+```
+Since there are many missing values in the data, we have imputed these by using the average from the available data for that interval. Doing so reveals that our original analysis is pretty much spot-on, with the means and medians remaining roughly the same.
+```{r}
+# Impute and report missing data
+print(paste("Number of rows with missing data is",
+            nrow(rawdata[!complete.cases(rawdata),])))
+newdata <- rawdata
+for (i in 1:nrow(newdata)) {
+  if (is.na(rawdata[i,1])) {
+    newdata[i,1]<-stepsPerInterval[newdata[i,3]]
+  }
+}
+# Calculate mean and median for the new data
+print(paste("New mean steps per day are ",
+            mean(tapply(newdata$steps,newdata$date,sum))))
+print(paste("New median steps per day are ",
+            median(tapply(newdata$steps,newdata$date,sum))))
+hist(tapply(newdata$steps,newdata$date,sum), 
+     xlab="steps", main="Imputed Steps per Day")
+```
+Next we analyze for differences between weekdays and weekends. The average activity plots reveal that there is more activity throughout the day during the weekends, while activity during weekdays is restricted to only a few sections of the day.
+```{r}
+#Compute and add weekdays and weekends
+rawdata$weekday <- ifelse(
+  (weekdays(as.Date(rawdata$date)) == "Saturday" | 
+     weekdays(as.Date(rawdata$date)) == "Saturday"),
+  "Weekend","Weekday")
+byWeekday<-ddply(rawdata,"weekday",function(x) {
+  ddply(x,"interval",function(y) {
+    mean(y$steps,na.rm=TRUE)
+  })
+})
+g<-ggplot(byWeekday,aes(interval,V1))
+print(g+geom_line(aes(group=weekday))+facet_grid(weekday~.)+ggtitle("Weekday-Weekend Split"))
+```
