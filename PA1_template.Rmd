@@ -65,5 +65,5 @@ byWeekday<-ddply(rawdata,"weekday",function(x) {
   })
 })
 g<-ggplot(byWeekday,aes(interval,V1))
-print(g+geom_line(aes(group=weekday))+facet_grid(weekday~.)+ggtitle("Weekday-Weekend Split"))
+print(g+geom_line(aes(group=weekday))+facet_grid(weekday~.)+ggtitle("Weekday-Weekend Split") +ylab("steps per interval"))
 ```
